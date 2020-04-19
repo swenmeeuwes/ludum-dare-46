@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using DG.Tweening;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,18 +7,77 @@ public class EnemyAnt : MonoBehaviour {
     [SerializeField] private float _movementSpeed;
     [SerializeField] private SpriteRenderer _spriteRenderer;
 
-    public bool Alive { get; set; } = true;
+    public int DamagePower { get; set; } = 2;
+    public bool Alive => Health > 0;
+    public int Health { get; set; } = 10;
+
+    public Ant FightTarget { get; set; }
 
     private void Start() {
         StartCoroutine(AttackQueen());
     }
 
+    private void OnTriggerEnter2D(Collider2D collision) {
+        var ant = collision.transform.GetComponent<Ant>();
+        if (ant == null) {
+            return;
+        }
+
+        if (FightTarget != null) {
+            return; // first finish this fight
+        }
+
+        StopAllCoroutines();
+        StartCoroutine(FightSequence(ant));
+    }
+
+    public void Damage(int amount) {
+        Health -= amount;
+
+        if (!Alive) {
+            StopAllCoroutines();
+            _spriteRenderer.DOFade(0, .85f).OnComplete(() => {
+                EnemyManager.Instance.Enemies.Remove(this);
+                Destroy(gameObject);
+            });
+        }
+    }
+
+    private IEnumerator FightSequence(Ant enemy) {
+        FightTarget = enemy;
+
+        var startPos = transform.position;
+        var enemyDeltaPos = enemy.transform.position - transform.position;
+
+        _spriteRenderer.flipX = enemyDeltaPos.x < 0;
+
+        while (enemy.Alive && Alive) {
+            yield return transform.DOPunchPosition(enemyDeltaPos.normalized, .35f, vibrato: 0, elasticity: 0).WaitForCompletion();
+            enemy.Damage(DamagePower);
+
+            yield return new WaitForSeconds(1.2f);
+            yield return transform.DOMove(startPos, .35f).WaitForCompletion();
+        }
+
+        FightTarget = null;
+
+        yield return AttackQueen();
+    }
+
     public IEnumerator AttackQueen() {
         while (Alive) {
-            if (Vector3.Distance(QueenAnt.Instance.transform.position, transform.position) < .1f) {
+            var queenPos = QueenAnt.Instance.transform.position;
+            if (Vector3.Distance(queenPos, transform.position) < 1.5f) {
+                var queenDeltaPos = queenPos - transform.position;
+                yield return transform.DOPunchPosition(queenDeltaPos.normalized, .35f, vibrato: 0, elasticity: 0).WaitForCompletion();
+                QueenAnt.Instance.Damage(DamagePower);
                 yield return new WaitForSeconds(1f);
             } else {
-                yield return PathFindTo(Vector2Int.RoundToInt(QueenAnt.Instance.transform.position));
+                var pathFinder = new PathFinder(TileMapManager.Instance.GroundTilemap);
+                var path = pathFinder.FindShortestPath(Vector2Int.RoundToInt(transform.position), Vector2Int.RoundToInt(queenPos));
+                path.RemoveAt(path.Count - 1);
+
+                yield return WalkPath(path);
             }
         }
     }

@@ -26,6 +26,9 @@ public class AntManager : MonoBehaviour
 
     public void RequestBuildAt(Vector2Int position, RoomType constructionType) {
         var builders = _ants.FindAll(a => a.Type == Ant.AntType.Builder);
+        if (builders.Count == 0) {
+            return; // No builders ;'c
+        }
 
         var builder = builders[Random.Range(0, builders.Count)];
         builder.BuildAt(position, constructionType);

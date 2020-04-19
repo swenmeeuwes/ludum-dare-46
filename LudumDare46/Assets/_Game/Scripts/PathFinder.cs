@@ -19,7 +19,7 @@ public class PathFinder {
         open.Add(new Node(startPosition, startPosition, endPosition));
 
         var depth = 0;
-        while (depth < maxDepth) {
+        while (depth < maxDepth && open.Count > 0) {
             var current = open.Aggregate((currentNode, n) => (currentNode == null || n.FCost < currentNode.FCost ? n : currentNode));
 
             open.Remove(current);

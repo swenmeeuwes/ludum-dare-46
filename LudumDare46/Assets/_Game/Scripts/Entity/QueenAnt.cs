@@ -13,6 +13,7 @@ public class QueenAnt : MonoBehaviour {
     [SerializeField] private SpriteRenderer _spriteRenderer;
 
     public SpriteRenderer SpriteRenderer => _spriteRenderer;
+    public int Health { get; set; } = 10;
 
     public static QueenAnt Instance { get; private set; }
 
@@ -37,6 +38,20 @@ public class QueenAnt : MonoBehaviour {
         }
     }
 
+    public void Damage(int amount) {
+        CameraManager.Instance.NotifyQueenDamage();
+
+        Health -= amount;
+
+        if (Health <= 0) {
+            // GAME OVER
+            CameraManager.Instance.MoveToQueen(true);
+            _spriteRenderer.DOFade(0, .95f).SetDelay(.5f);
+
+            GameManager.Instance.GameOver();
+        }
+    }
+
     public void RequestLayEggs() {
         StopAllCoroutines();
         StartCoroutine(LayEggsSequence());
@@ -44,12 +59,17 @@ public class QueenAnt : MonoBehaviour {
 
     private IEnumerator LayEggsSequence() {
         var emptyNurseryRooms = RoomManager.Instance.NurseryRooms.Where(r => r.Eggs.Count == 0).ToList();
-        if (emptyNurseryRooms.Count > 0) {
+        while (emptyNurseryRooms.Count > 0) {
             var room = emptyNurseryRooms[Random.Range(0, emptyNurseryRooms.Count)];
             yield return PathFindTo(room.Position);
 
-            yield return LayEggs(Random.Range(1, 4), room); // 1-3 eggs (4 = excl) 
+            yield return LayEggs(Random.Range(1, 4), room); // 1-3 eggs (4 = excl)
+
+            emptyNurseryRooms = RoomManager.Instance.NurseryRooms.Where(r => r.Eggs.Count == 0).ToList();
         }
+
+        MoveToQueenRoomIfAvailable();
+        ActionManager.Instance.UpdateLayEggs();
     }
 
     private IEnumerator LayEggs(int amount, NurseryRoom room) {
@@ -65,8 +85,6 @@ public class QueenAnt : MonoBehaviour {
             yield return new WaitForSeconds(1f);
             yield return transform.DOMove(startPos, .35f);
         }
-
-        MoveToQueenRoomIfAvailable();
     }
 
     public Egg CreateEggAtPosition() {

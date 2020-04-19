@@ -1,10 +1,15 @@
-﻿using System.Collections;
+﻿using DG.Tweening;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 public class Ant : MonoBehaviour {
     readonly private int surface = -2;
+
+    [SerializeField] private Sprite _builderSprite;
+    [SerializeField] private Sprite _foragerSprite;
+    [SerializeField] private Sprite _soldierSprite;
 
     [SerializeField] private float _movementSpeed;
     [SerializeField] private AntType _type;
@@ -13,21 +18,89 @@ public class Ant : MonoBehaviour {
     private Vector3 _idlePosition;
     private Coroutine _currentCoroutine;
 
-    public AntType Type { get { return _type; } set { _type = value; } }
+    public AntType Type { get { return _type; } set { _type = value; UpdateSprite(); } }
+    public bool Alive => Health > 0;
+    public int Health { get; set; } = 4;
+    public int DamagePower { get; set; } = 1;
 
     private Vector2Int _lastTurtlePosition;
+
+    public EnemyAnt FightTarget { get; set; }
 
     private void Start() {
         AntManager.Instance.Register(this);
 
+        if (Type == AntType.Soldier) {
+            Health = 10;
+            DamagePower = 2;
+        }
+
         Work();
     }
 
-    public void BuildAt(Vector2Int position, RoomType constructionType) {
+    private void OnTriggerEnter2D(Collider2D collision) {
+        var ant = collision.transform.GetComponent<EnemyAnt>();
+        if (ant == null) {
+            return;
+        }
+
+        if (FightTarget != null) {
+            return; // first finish this fight
+        }
+
+        StopAllCoroutines();
+        _currentCoroutine = null;
+        StartCoroutine(FightSequence(ant));
+    }
+
+    private void UpdateSprite() {
+        var sprite = _builderSprite;
+
+        switch (Type) {
+            case AntType.Builder:
+                sprite = _builderSprite;
+                break;
+            case AntType.Forager:
+                sprite = _foragerSprite;
+                break;
+            case AntType.Soldier:
+                sprite = _soldierSprite;
+                break;
+        }
+
+        _spriteRenderer.sprite = sprite;
+    }
+
+    public void Fight(EnemyAnt enemy) {
+        if (FightTarget != null) {
+            return; // first finish other fight
+        }
+
+        StopAllCoroutines();
+        _currentCoroutine = StartCoroutine(FightSequence(enemy));
+    }
+
+    public void StopCurrent() {
         if (_currentCoroutine != null) {
             StopCoroutine(_currentCoroutine);
             _currentCoroutine = null;
         }
+    }
+
+    public void Damage(int amount) {
+        Health -= amount;
+
+        if (!Alive) {
+            StopAllCoroutines();
+            _spriteRenderer.DOFade(0, .85f).OnComplete(() => {
+                AntManager.Instance.Deregister(this);
+                Destroy(gameObject);
+            });
+        }
+    }
+
+    public void BuildAt(Vector2Int position, RoomType constructionType) {
+        StopCurrent();
 
         var pathFinder = new PathFinder(TileMapManager.Instance.GroundTilemap);
         var path = pathFinder.FindShortestPath(Vector2Int.RoundToInt(transform.position), position);
@@ -43,7 +116,15 @@ public class Ant : MonoBehaviour {
         switch (_type) {
             case AntType.Builder:
                 _idlePosition = transform.position;
-                _currentCoroutine = StartCoroutine(TurtleTunnelCoroutine(20));
+
+                var constructionSites = RoomManager.Instance.ConstructionSites.ToList();
+                if (constructionSites.Count > 0) {
+                    var site = constructionSites[0];
+                    _currentCoroutine = StartCoroutine(ContinueBuildAtSequence(site));
+                    return;
+                }
+
+                _currentCoroutine = StartCoroutine(TurtleTunnelCoroutine(25));
                 break;
             case AntType.Forager:
                 _currentCoroutine = StartCoroutine(ForageCoroutine());
@@ -57,6 +138,27 @@ public class Ant : MonoBehaviour {
         }
     }
 
+    private IEnumerator FightSequence(EnemyAnt enemy) {
+        FightTarget = enemy;
+
+        var startPos = transform.position;
+        var enemyDeltaPos = enemy.transform.position - transform.position;
+
+        _spriteRenderer.flipX = enemyDeltaPos.x < 0;
+
+        while (enemy.Alive && Alive) {
+            yield return transform.DOPunchPosition(enemyDeltaPos.normalized, .35f, vibrato: 0, elasticity: 0).WaitForCompletion();
+            enemy.Damage(DamagePower);
+
+            yield return new WaitForSeconds(1.2f);
+            yield return transform.DOMove(startPos, .35f).WaitForCompletion();
+        }
+
+        FightTarget = null;
+
+        Work();
+    }
+
     private IEnumerator SoldierCoroutine() {
         var start = AntManager.Instance.ForagerStart;
         yield return PathFindTo((Vector2Int)start);
@@ -66,6 +168,11 @@ public class Ant : MonoBehaviour {
         Vector3Int targetPos = Vector3Int.RoundToInt(transform.position);
 
         while (true) {
+            //var enemies = EnemyManager.Instance.Enemies;
+            //if (enemies.Count > 0) {
+            //    var enemyClosestToQueen = 
+            //}
+
             while (!canMoveTowardsDirection) {
                 targetPos = Vector3Int.RoundToInt(transform.position) + currentDirection;
                 canMoveTowardsDirection = TileMapManager.Instance.GroundTilemap.GetTile(targetPos) == null;
@@ -138,8 +245,8 @@ public class Ant : MonoBehaviour {
             var holeOffset = Random.Range(-3, 3);
             var targetPosition = Vector3Int.RoundToInt(foodPosition + Vector3.right * holeOffset);
 
-            yield return MoveTo(new Vector3Int(targetPosition.x, Mathf.RoundToInt(transform.position.y), 0), true); // Dig horizontally
-            yield return MoveTo(targetPosition, true); // Dig up
+            yield return MoveTo(new Vector3Int(targetPosition.x, Mathf.RoundToInt(transform.position.y), 0), true, .5f); // Dig horizontally
+            yield return MoveTo(targetPosition, true, .5f); // Dig up
 
             // Look around
             for (var i = 0; i < 4; i++) {
@@ -168,7 +275,7 @@ public class Ant : MonoBehaviour {
                     yield return new WaitForSeconds(2f);
 
                     var storageRoom = storageRooms[Random.Range(0, storageRooms.Count)];
-                    yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position));
+                    yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position), speedMult: .1f);
 
                     yield return new WaitForSeconds(1f);
 
@@ -202,16 +309,18 @@ public class Ant : MonoBehaviour {
             }
 
             var digSpeed = _movementSpeed;
-            if (transform.position.y < -10) {
-                digSpeed /= 4;
+            if (transform.position.y < -5) {
+                digSpeed = _movementSpeed / 4;
+            } else if (transform.position.y < -10) {
+                digSpeed = _movementSpeed / 6;
             } else if (transform.position.y < -20) {
-                digSpeed /= 12;
+                digSpeed = _movementSpeed / 8;
             } else if (transform.position.y < -25) {
-                digSpeed /= 24;
+                digSpeed = _movementSpeed / 10;
             } else if (transform.position.y < -30) {
-                digSpeed /= 36;
+                digSpeed = _movementSpeed / 20;
             } else if (transform.position.y < -32) {
-                digSpeed /= 60;
+                digSpeed = _movementSpeed / 48;
             }
 
             while (Vector3.Distance(transform.position, nextTurtleTarget) > .05f) {
@@ -245,6 +354,7 @@ public class Ant : MonoBehaviour {
 
     private IEnumerator BuildAtSequence(Vector2Int targetPosition, List<Vector2Int> path, RoomType constructionType) {
         var constructionSite = ConstructionManager.Instance.BuildConstructionSite(targetPosition, constructionType);
+        constructionSite.Worker = this;
 
         yield return WalkPath(path);
 
@@ -269,28 +379,63 @@ public class Ant : MonoBehaviour {
             }
         }
 
-        constructionSite.Complete();
+        if (constructionSite != null && constructionSite.gameObject.activeInHierarchy) {
+            constructionSite.Complete();
+        }
 
         yield return new WaitForSeconds(.5f);
 
         Work();
     }
 
-    private IEnumerator PathFindTo(Vector2Int position) {
+    private IEnumerator ContinueBuildAtSequence(ConstructionSite site) {
+        yield return PathFindTo(site.Position);
+
+        var tileMap = TileMapManager.Instance.GroundTilemap;
+        for (var i = -1; i <= 1; i++) {
+            for (var j = -1; j <= 1; j++) {
+                if (i == 0 && j == 0) {
+                    continue;
+                }
+
+                var tilePos = new Vector3Int(i + site.Position.x, j + site.Position.y, 0);
+                var tile = tileMap.GetTile(tilePos);
+                if (tile == null) {
+                    continue;
+                }
+
+                yield return WalkPath(new List<Vector2Int> { (Vector2Int)tilePos });
+
+                tileMap.SetTile(tilePos, null);
+
+                yield return WalkPath(new List<Vector2Int> { site.Position });
+            }
+        }
+
+        if (site != null && site.gameObject.activeInHierarchy) {
+            site.Complete();
+        }
+
+        yield return new WaitForSeconds(.5f);
+
+        Work();
+    }
+
+    private IEnumerator PathFindTo(Vector2Int position, float speedMult = 1) {
         var pathFinder = new PathFinder(TileMapManager.Instance.GroundTilemap);
         var path = pathFinder.FindShortestPath(Vector2Int.RoundToInt(transform.position), position);
 
-        yield return StartCoroutine(WalkPath(path));
+        yield return StartCoroutine(WalkPath(path, speedMult: speedMult));
     }
 
-    private IEnumerator WalkPath(List<Vector2Int> path, bool dig = false) {
+    private IEnumerator WalkPath(List<Vector2Int> path, bool dig = false, float speedMult = 1) {
         Vector3 nextTargetPosition;
         var pathIndex = 0;
         while (pathIndex < path.Count) {
             nextTargetPosition = new Vector3(path[pathIndex].x, path[pathIndex].y);
             while (Vector3.Distance(transform.position, nextTargetPosition) > .05f) {
                 var directionToTarget = (nextTargetPosition - transform.position).normalized;
-                transform.Translate(directionToTarget * _movementSpeed * Time.deltaTime);
+                transform.Translate(directionToTarget * _movementSpeed * speedMult * Time.deltaTime);
 
                 _spriteRenderer.flipX = directionToTarget.x < 0;
 
@@ -305,10 +450,10 @@ public class Ant : MonoBehaviour {
         }
     }
 
-    private IEnumerator MoveTo(Vector3Int position, bool dig = false) {
+    private IEnumerator MoveTo(Vector3Int position, bool dig = false, float speedMult = 1) {
         while (Vector3.Distance(transform.position, position) > .05f) {
             var directionToTarget = (position - transform.position).normalized;
-            transform.Translate(directionToTarget * _movementSpeed * Time.deltaTime);
+            transform.Translate(directionToTarget * _movementSpeed * speedMult * Time.deltaTime);
 
             _spriteRenderer.flipX = directionToTarget.x < 0;
 
