@@ -210,5 +210,5 @@ MonoBehaviour:
   _eggPrefab: {fileID: 6695521710842717228, guid: f45e1e5f14ba2b242aa4f14b298a7e36,
     type: 3}
   _wings: {fileID: 1841314212631727905}
-  _movementSpeed: 2
+  _movementSpeed: 4
   _spriteRenderer: {fileID: 6973258593151489294}

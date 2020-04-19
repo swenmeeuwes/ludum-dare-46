@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 4164785604637688619}
   - component: {fileID: 4164785604637688613}
   m_Layer: 0
-  m_Name: Fruit
+  m_Name: Food
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -44,6 +44,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1862546466a4e4b4eb2367b814d8e037, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _sprites:
+  - {fileID: 21300000, guid: aad83306bb935ef4db3d349e18a96d56, type: 3}
+  - {fileID: 21300000, guid: e75d0e0bdcb1d5849a899fa142f3cef0, type: 3}
+  - {fileID: 21300000, guid: da7a583593e342d4a90cabe404cdd386, type: 3}
+  - {fileID: 21300000, guid: 0586242d7cee98f48968bc794ddd25e7, type: 3}
   _spriteRenderer: {fileID: 4164785605650922022}
 --- !u!1 &4164785605650922016
 GameObject:
@@ -114,7 +119,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
+  m_SortingOrder: 2
   m_Sprite: {fileID: 21300000, guid: b387b8716dea9194b9467cce9d62f84e, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0

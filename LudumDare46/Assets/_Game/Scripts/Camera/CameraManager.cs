@@ -58,8 +58,8 @@ public class CameraManager : MonoBehaviour {
             _queenAttackedText.DOFade(0, .25f);
             CanMoveCameraAround = false;
             var pixelPerfectCamera = GetComponent<PixelPerfectCamera>();
-            DOTween.To(() => pixelPerfectCamera.assetsPPU, (x) => pixelPerfectCamera.assetsPPU = (int)x, 20f, 3f).SetEase(Ease.Linear);
-            transform.DOMove(new Vector3(0, -17, -10), 3f);
+            DOTween.To(() => pixelPerfectCamera.assetsPPU, (x) => pixelPerfectCamera.assetsPPU = (int)x, 28f, 1f).SetEase(Ease.Linear);
+            transform.DOMove(new Vector3(0, -17, -10), 1f).SetEase(Ease.Linear);
 
             return;
         }

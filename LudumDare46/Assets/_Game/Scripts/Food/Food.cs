@@ -2,11 +2,14 @@
 using UnityEngine;
 
 public class Food : MonoBehaviour {
+    [SerializeField] private Sprite[] _sprites;
     [SerializeField] private SpriteRenderer _spriteRenderer;
     public State CurrentState { get; private set; }
 
     private void Start() {
         CurrentState = State.Surface;
+
+        _spriteRenderer.sprite = _sprites[Random.Range(0, _sprites.Length)];
 
         FoodManager.Instance.Register(this);
         _spriteRenderer.color = new Color(_spriteRenderer.color.r, _spriteRenderer.color.g, _spriteRenderer.color.b, 0);
@@ -26,6 +29,8 @@ public class Food : MonoBehaviour {
         transform.DOMove(transform.position + new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), 0), .35f);
 
         room.AddFood(this);
+
+        ScoreManager.Instance.NotifyFoodCollected();
     }
 
     public enum State {

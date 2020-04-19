@@ -32,10 +32,6 @@ public class ConstructionManager : MonoBehaviour {
     }
 
     private void Update() {
-        if (Input.GetKeyDown(KeyCode.A)) { // TODO: Hook up to button?
-            ToggleBuildMode();
-        }
-
         if (!IsBuilding) {
             return;
         }

@@ -32,6 +32,7 @@ public class GameManager : MonoBehaviour {
 
     public void GameOver() {
         _gameOverPanel.DOFade(1, .95f).SetDelay(1.5f);
+        ScoreManager.Instance.Counting = false;
     }
 
     public void Restart() {

@@ -35,6 +35,10 @@ public class Ant : MonoBehaviour {
             DamagePower = 2;
         }
 
+        if (Type == Ant.AntType.Forager) {
+            _movementSpeed = 4f;
+        }
+
         Work();
     }
 
@@ -245,8 +249,8 @@ public class Ant : MonoBehaviour {
             var holeOffset = Random.Range(-3, 3);
             var targetPosition = Vector3Int.RoundToInt(foodPosition + Vector3.right * holeOffset);
 
-            yield return MoveTo(new Vector3Int(targetPosition.x, Mathf.RoundToInt(transform.position.y), 0), true, .5f); // Dig horizontally
-            yield return MoveTo(targetPosition, true, .5f); // Dig up
+            yield return MoveTo(new Vector3Int(targetPosition.x, Mathf.RoundToInt(transform.position.y), 0), true, .8f); // Dig horizontally
+            yield return MoveTo(targetPosition, true, .8f); // Dig up
 
             // Look around
             for (var i = 0; i < 4; i++) {
@@ -275,7 +279,7 @@ public class Ant : MonoBehaviour {
                     yield return new WaitForSeconds(2f);
 
                     var storageRoom = storageRooms[Random.Range(0, storageRooms.Count)];
-                    yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position), speedMult: .1f);
+                    yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position), speedMult: .5f);
 
                     yield return new WaitForSeconds(1f);
 

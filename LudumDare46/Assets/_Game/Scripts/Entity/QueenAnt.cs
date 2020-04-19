@@ -13,6 +13,7 @@ public class QueenAnt : MonoBehaviour {
     [SerializeField] private SpriteRenderer _spriteRenderer;
 
     public SpriteRenderer SpriteRenderer => _spriteRenderer;
+    public int MaxHealth { get; set; } = 10;
     public int Health { get; set; } = 10;
 
     public static QueenAnt Instance { get; private set; }
@@ -85,6 +86,10 @@ public class QueenAnt : MonoBehaviour {
             yield return new WaitForSeconds(1f);
             yield return transform.DOMove(startPos, .35f);
         }
+    }
+
+    public void RestoreHP() {
+        Health = MaxHealth;
     }
 
     public Egg CreateEggAtPosition() {
