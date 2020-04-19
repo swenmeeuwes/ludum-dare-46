@@ -13,7 +13,9 @@ public class Ant : MonoBehaviour {
     private Vector3 _idlePosition;
     private Coroutine _currentCoroutine;
 
-    public AntType Type => _type;
+    public AntType Type { get { return _type; } set { _type = value; } }
+
+    private Vector2Int _lastTurtlePosition;
 
     private void Start() {
         AntManager.Instance.Register(this);
@@ -33,6 +35,11 @@ public class Ant : MonoBehaviour {
     }
 
     private void Work() {
+        if (_currentCoroutine != null) {
+            StopCoroutine(_currentCoroutine);
+            _currentCoroutine = null;
+        }
+
         switch (_type) {
             case AntType.Builder:
                 _idlePosition = transform.position;
@@ -41,9 +48,60 @@ public class Ant : MonoBehaviour {
             case AntType.Forager:
                 _currentCoroutine = StartCoroutine(ForageCoroutine());
                 break;
+            case AntType.Soldier:
+                _currentCoroutine = StartCoroutine(SoldierCoroutine());
+                break;
 
             default:
                 break;
+        }
+    }
+
+    private IEnumerator SoldierCoroutine() {
+        var start = AntManager.Instance.ForagerStart;
+        yield return PathFindTo((Vector2Int)start);
+
+        Vector3Int currentDirection = Vector3Int.down;
+        bool canMoveTowardsDirection = false;
+        Vector3Int targetPos = Vector3Int.RoundToInt(transform.position);
+
+        while (true) {
+            while (!canMoveTowardsDirection) {
+                targetPos = Vector3Int.RoundToInt(transform.position) + currentDirection;
+                canMoveTowardsDirection = TileMapManager.Instance.GroundTilemap.GetTile(targetPos) == null;
+
+                if (!canMoveTowardsDirection || transform.position.y >= -4) {
+                    if (transform.position.y >= -4) {
+                        currentDirection = Vector3Int.down;
+                    } else {
+                        currentDirection = GetRandomDirection();
+                    }
+
+                    targetPos = Vector3Int.RoundToInt(transform.position) + currentDirection;
+                    canMoveTowardsDirection = TileMapManager.Instance.GroundTilemap.GetTile(targetPos) == null;
+
+                    yield return null;
+                }
+            }
+
+            yield return MoveTo(targetPos);
+            canMoveTowardsDirection = false;
+        }
+    }
+
+    private Vector3Int GetRandomDirection() {
+        var ran = Random.Range(0, 4);
+        switch (ran) {
+            case 0:
+                return Vector3Int.up;
+            case 1:
+                return Vector3Int.down;
+            case 2:
+                return Vector3Int.left;
+            case 3:
+                return Vector3Int.right;
+            default:
+                return Vector3Int.down;
         }
     }
 
@@ -63,41 +121,102 @@ public class Ant : MonoBehaviour {
             yield return WalkPath(path);
         }
 
-        var foods = FoodManager.Instance.SurfaceFoods;
-        var closestFood = foods.Aggregate((closest, curr) => 
-            (curr == null || (curr.transform.position.x * direction.x < 0 && curr.transform.position.x * direction.x > closest.transform.position.x) ? closest : curr));
-
-        var foodPosition = Vector3Int.RoundToInt(closestFood.transform.position);
-        var holeOffset = Random.Range(-3, 3);
-        var targetPosition = Vector3Int.RoundToInt(foodPosition + Vector3.right * holeOffset);
-
-        yield return MoveTo(new Vector3Int(targetPosition.x, Mathf.RoundToInt(transform.position.y), 0), true); // Dig horizontally
-        yield return MoveTo(targetPosition, true); // Dig up
-        yield return MoveTo(foodPosition, true); // Move to Food
-
-        yield return new WaitForSeconds(2f); // TODO: play smikkel animation
-
-        // TODO: Carry piece of food to storage
-        var storageRooms = RoomManager.Instance.FoodStorageRooms.ToList();
-        if (storageRooms.Count == 0) {
+        var foods = FoodManager.Instance.SurfaceFoods.ToList();
+        if (foods.Count == 0) {
             Work();
+            yield break;
+        }
+
+        //var closestFood = foods.Aggregate((closest, curr) =>
+        //    (curr == null || curr.CurrentState != Food.State.Surface || (curr.transform.position.x * direction.x < 0 && curr.transform.position.x * direction.x > closest.transform.position.x) ? closest : curr));
+        var randomFood = foods[Random.Range(0, foods.Count)];
+        if (randomFood == null) {
+            Work();
+            yield break;
         } else {
-            var storageRoom = storageRooms[Random.Range(0, storageRooms.Count)];
-            yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position));
+            var foodPosition = Vector3Int.RoundToInt(randomFood.transform.position);
+            var holeOffset = Random.Range(-3, 3);
+            var targetPosition = Vector3Int.RoundToInt(foodPosition + Vector3.right * holeOffset);
 
-            Work();
+            yield return MoveTo(new Vector3Int(targetPosition.x, Mathf.RoundToInt(transform.position.y), 0), true); // Dig horizontally
+            yield return MoveTo(targetPosition, true); // Dig up
+
+            // Look around
+            for (var i = 0; i < 4; i++) {
+                _spriteRenderer.flipX = !_spriteRenderer.flipX;
+                yield return new WaitForSeconds(.5f);
+            }
+
+            _spriteRenderer.flipX = transform.position.x > randomFood.transform.position.x; // Face the food
+
+            yield return new WaitForSeconds(1f);
+
+            yield return MoveTo(foodPosition, true); // Move to Food
+
+            yield return new WaitForSeconds(2f); // TODO: play smikkel animation
+
+            // TODO: Carry piece of food to storage
+            var storageRooms = RoomManager.Instance.FoodStorageRooms.ToList();
+            if (storageRooms.Count == 0) {
+                Work();
+            } else {
+                if (randomFood.CurrentState != Food.State.Surface) {
+                    Work();
+                } else {
+                    randomFood.PickUp(this);
+
+                    yield return new WaitForSeconds(2f);
+
+                    var storageRoom = storageRooms[Random.Range(0, storageRooms.Count)];
+                    yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position));
+
+                    yield return new WaitForSeconds(1f);
+
+                    storageRoom.AddFood(randomFood);
+
+                    yield return new WaitForSeconds(3f);
+
+                    Work();
+                }
+            }
         }
     }
 
     private IEnumerator TurtleTunnelCoroutine(int tiles) {
+        if (_lastTurtlePosition != default) {
+            yield return PathFindTo(_lastTurtlePosition);
+        } else {
+            yield return PathFindTo((Vector2Int)AntManager.Instance.ForagerStart);
+        }
+
         var tilesLeft = tiles;
         var turtleDirection = Vector3.down;
-        var nextTurtleTarget = transform.position + turtleDirection * 5f;
+        var nextTurtleTarget = transform.position + turtleDirection;
 
         while (tilesLeft > 0) {
+            if (transform.position.y <= -28) {
+                yield return PathFindTo((Vector2Int)AntManager.Instance.ForagerStart);
+                _lastTurtlePosition = (Vector2Int)AntManager.Instance.ForagerStart;
+                Work();
+                yield break;
+            }
+
+            var digSpeed = _movementSpeed;
+            if (transform.position.y < -10) {
+                digSpeed /= 4;
+            } else if (transform.position.y < -20) {
+                digSpeed /= 12;
+            } else if (transform.position.y < -25) {
+                digSpeed /= 24;
+            } else if (transform.position.y < -30) {
+                digSpeed /= 36;
+            } else if (transform.position.y < -32) {
+                digSpeed /= 60;
+            }
+
             while (Vector3.Distance(transform.position, nextTurtleTarget) > .05f) {
                 var directionToTarget = (nextTurtleTarget - transform.position).normalized;
-                transform.Translate(directionToTarget * _movementSpeed * Time.deltaTime);
+                transform.Translate(directionToTarget * digSpeed * Time.deltaTime);
 
                 _spriteRenderer.flipX = directionToTarget.x < 0;
 
@@ -106,6 +225,7 @@ public class Ant : MonoBehaviour {
                 yield return null;
             }
 
+            _lastTurtlePosition = Vector2Int.RoundToInt(transform.position);
             transform.position = nextTurtleTarget;
 
             turtleDirection = GetNewTurtleDirection(turtleDirection);
@@ -116,12 +236,16 @@ public class Ant : MonoBehaviour {
 
         // Walk back to surface
         var pathFinder = new PathFinder(TileMapManager.Instance.GroundTilemap);
-        var path = pathFinder.FindShortestPath(Vector2Int.RoundToInt(transform.position), Vector2Int.RoundToInt(_idlePosition));
-        
+        var path = pathFinder.FindShortestPath(Vector2Int.RoundToInt(transform.position), (Vector2Int)AntManager.Instance.ForagerStart);
+
         yield return WalkPath(path);
+
+        Work();
     }
 
     private IEnumerator BuildAtSequence(Vector2Int targetPosition, List<Vector2Int> path, RoomType constructionType) {
+        var constructionSite = ConstructionManager.Instance.BuildConstructionSite(targetPosition, constructionType);
+
         yield return WalkPath(path);
 
         var tileMap = TileMapManager.Instance.GroundTilemap;
@@ -145,13 +269,17 @@ public class Ant : MonoBehaviour {
             }
         }
 
-        ConstructionManager.Instance.BuildAt(targetPosition, constructionType);
+        constructionSite.Complete();
+
+        yield return new WaitForSeconds(.5f);
+
+        Work();
     }
 
     private IEnumerator PathFindTo(Vector2Int position) {
         var pathFinder = new PathFinder(TileMapManager.Instance.GroundTilemap);
         var path = pathFinder.FindShortestPath(Vector2Int.RoundToInt(transform.position), position);
-        
+
         yield return StartCoroutine(WalkPath(path));
     }
 
@@ -213,6 +341,7 @@ public class Ant : MonoBehaviour {
 
     public enum AntType {
         Builder = 0,
-        Forager = 1
+        Forager = 1,
+        Soldier = 2
     }
 }

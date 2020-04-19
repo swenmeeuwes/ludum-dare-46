@@ -6,6 +6,8 @@ public class CameraManager : MonoBehaviour {
     [SerializeField] private Rect _moveableArea;
     [SerializeField] private float _moveSpeed;
 
+    private Vector3 _previousMousePosition;
+
     private void Update() {
         if (Input.GetKey(KeyCode.DownArrow)) {
             Move(Vector3.down);
@@ -18,6 +20,13 @@ public class CameraManager : MonoBehaviour {
         } else if (Input.GetKey(KeyCode.RightArrow)) {
             Move(Vector3.right);
         }
+
+        if(Input.GetMouseButton(1) && _previousMousePosition != null) {
+            var deltaMousePos = _previousMousePosition - Input.mousePosition;
+            Move(deltaMousePos.normalized * 2f);
+        }
+
+        _previousMousePosition = Input.mousePosition;
     }
 
     private void Move(Vector3 direction) {

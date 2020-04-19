@@ -1,23 +1,46 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class FoodManager : MonoBehaviour {
+    [SerializeField] private Food _foodPrefab;
+    [SerializeField] private int _maxFoodItems = 5;
+    [SerializeField] private int _foodSpawnInterval = 30;
+
     public static FoodManager Instance { get; set; }
 
-    private List<Food> _surfaceFoods = new List<Food>();
-
-    public List<Food> SurfaceFoods => _surfaceFoods;
+    public List<Food> Foods { get; } = new List<Food>();
+    public IEnumerable<Food> SurfaceFoods => Foods.Where(f => f.CurrentState == Food.State.Surface);
 
     private void Awake() {
         Instance = this;
     }
 
+    private void Start() {
+        StartCoroutine(SpawnFruitSequence());
+    }
+
+    private IEnumerator SpawnFruitSequence() {
+        while (true) {
+            yield return new WaitForSeconds(_foodSpawnInterval);
+
+            if (Foods.Count < _maxFoodItems) {
+                SpawnFruitAtRandomLocation();
+            }
+        }
+    }
+
+    private void SpawnFruitAtRandomLocation() {
+        var fruit = Instantiate(_foodPrefab);
+        fruit.transform.position = new Vector3(Random.Range(-15, 15), -2, 0);
+    }
+
     public void Register(Food food) {
-        _surfaceFoods.Add(food);
+        Foods.Add(food);
     }
 
     public void Deregister(Food food) {
-        _surfaceFoods.Remove(food);
+        Foods.Remove(food);
     }
 }
