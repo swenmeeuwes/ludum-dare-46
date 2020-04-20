@@ -11,6 +11,7 @@ public class FoodStorageRoom : Room {
 
         food.transform.DOMove(transform.position + new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), 0), .35f);
 
+        food.Store(this);
         Food.Add(food);
     }
 }

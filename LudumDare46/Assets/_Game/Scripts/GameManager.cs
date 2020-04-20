@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour {
     [SerializeField] private TMP_Text[] _introTexts;
@@ -11,6 +12,8 @@ public class GameManager : MonoBehaviour {
     [SerializeField] private TMP_Text _hailQueenText;
     [SerializeField] private TMP_Text _instructionText;
     [SerializeField] private CanvasGroup _gameOverPanel;
+
+    [SerializeField] private Button _restartButton;
 
     public static GameManager Instance { get; set; }
 
@@ -27,12 +30,15 @@ public class GameManager : MonoBehaviour {
         _instructionText.alpha = 0;
         _gameOverPanel.alpha = 0;
 
+        _restartButton.interactable = false;
+
         StartCoroutine(StartGameSequence());
     }
 
     public void GameOver() {
         _gameOverPanel.DOFade(1, .95f).SetDelay(1.5f);
         ScoreManager.Instance.Counting = false;
+        _restartButton.interactable = true;
     }
 
     public void Restart() {

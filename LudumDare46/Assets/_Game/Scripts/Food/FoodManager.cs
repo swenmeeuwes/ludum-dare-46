@@ -25,7 +25,7 @@ public class FoodManager : MonoBehaviour {
         while (true) {
             yield return new WaitForSeconds(_foodSpawnInterval);
 
-            if (Foods.Count < _maxFoodItems) {
+            if (Foods.Count(f => f.CurrentState == Food.State.Surface) < _maxFoodItems) {
                 SpawnFruitAtRandomLocation();
             }
         }
@@ -33,7 +33,9 @@ public class FoodManager : MonoBehaviour {
 
     private void SpawnFruitAtRandomLocation() {
         var fruit = Instantiate(_foodPrefab);
-        fruit.transform.position = new Vector3(Random.Range(-15, 15), -2, 0);
+
+        var ranX = Random.value > .5f ? Random.Range(3, 23) : Random.Range(-3, -23);
+        fruit.transform.position = new Vector3(ranX, -2, 0);
     }
 
     public void Register(Food food) {

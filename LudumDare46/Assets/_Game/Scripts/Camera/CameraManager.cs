@@ -26,6 +26,13 @@ public class CameraManager : MonoBehaviour {
     }
 
     private void Update() {
+#if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.A)) {
+            MoveToQueen(true);
+            GameManager.Instance.GameOver();
+        }
+#endif
+
         if (Input.GetKey(KeyCode.DownArrow)) {
             Move(Vector3.down);
         } else if (Input.GetKey(KeyCode.UpArrow)) {
@@ -40,7 +47,7 @@ public class CameraManager : MonoBehaviour {
 
         if(Input.GetMouseButton(1) && _previousMousePosition != null) {
             var deltaMousePos = _previousMousePosition - Input.mousePosition;
-            Move(deltaMousePos.normalized * 2f);
+            Move(deltaMousePos);
         }
 
         _previousMousePosition = Input.mousePosition;

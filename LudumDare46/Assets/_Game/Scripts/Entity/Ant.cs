@@ -26,6 +26,7 @@ public class Ant : MonoBehaviour {
     private Vector2Int _lastTurtlePosition;
 
     public EnemyAnt FightTarget { get; set; }
+    public Food CarryingFood { get; set; }
 
     private void Start() {
         AntManager.Instance.Register(this);
@@ -217,8 +218,6 @@ public class Ant : MonoBehaviour {
     }
 
     private IEnumerator ForageCoroutine() {
-        var direction = Random.Range(0, 2) == 0 ? Vector3.left : Vector3.right;
-
         // First go to forager start
         var start = AntManager.Instance.ForagerStart;
 
@@ -230,6 +229,25 @@ public class Ant : MonoBehaviour {
             yield return MoveTo(start, true);
         } else {
             yield return WalkPath(path);
+        }
+
+        if (CarryingFood != null) {
+            // Drop off food
+            var storageRooms = RoomManager.Instance.FoodStorageRooms.ToList();
+            if (storageRooms.Count != 0) {
+                var storageRoom = storageRooms[Random.Range(0, storageRooms.Count)];
+                yield return PathFindTo(Vector2Int.RoundToInt(storageRoom.transform.position), speedMult: .5f);
+
+                yield return new WaitForSeconds(1f);
+
+                storageRoom.AddFood(CarryingFood);
+                CarryingFood = null;
+
+                yield return new WaitForSeconds(3f);
+            }
+
+            Work();
+            yield break;
         }
 
         var foods = FoodManager.Instance.SurfaceFoods.ToList();
@@ -266,7 +284,7 @@ public class Ant : MonoBehaviour {
 
             yield return new WaitForSeconds(2f); // TODO: play smikkel animation
 
-            // TODO: Carry piece of food to storage
+            // Carry piece of food to storage
             var storageRooms = RoomManager.Instance.FoodStorageRooms.ToList();
             if (storageRooms.Count == 0) {
                 Work();
@@ -275,6 +293,7 @@ public class Ant : MonoBehaviour {
                     Work();
                 } else {
                     randomFood.PickUp(this);
+                    CarryingFood = randomFood;
 
                     yield return new WaitForSeconds(2f);
 
@@ -284,6 +303,7 @@ public class Ant : MonoBehaviour {
                     yield return new WaitForSeconds(1f);
 
                     storageRoom.AddFood(randomFood);
+                    CarryingFood = null;
 
                     yield return new WaitForSeconds(3f);
 
@@ -400,6 +420,11 @@ public class Ant : MonoBehaviour {
             for (var j = -1; j <= 1; j++) {
                 if (i == 0 && j == 0) {
                     continue;
+                }
+
+                if (site == null || !site.gameObject.activeInHierarchy) {
+                    Work();
+                    yield break;
                 }
 
                 var tilePos = new Vector3Int(i + site.Position.x, j + site.Position.y, 0);

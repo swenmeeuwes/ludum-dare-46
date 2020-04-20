@@ -25,12 +25,6 @@ public class Food : MonoBehaviour {
 
     public void Store(FoodStorageRoom room) {
         CurrentState = State.InStorage;
-
-        transform.DOMove(transform.position + new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), 0), .35f);
-
-        room.AddFood(this);
-
-        ScoreManager.Instance.NotifyFoodCollected();
     }
 
     public enum State {

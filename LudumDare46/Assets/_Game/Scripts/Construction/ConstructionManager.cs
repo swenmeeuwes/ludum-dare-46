@@ -54,7 +54,7 @@ public class ConstructionManager : MonoBehaviour {
             _ghostText.text = "Too close to the surface";
         }
 
-        if (canBuild && mouseWorldPositionRounded.y <= -28) {
+        if (canBuild && mouseWorldPositionRounded.y <= -30) {
             canBuild = false;
             _ghostText.text = "Too deep";
         }

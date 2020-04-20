@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 
@@ -10,7 +11,7 @@ public class ScoreManager : MonoBehaviour
     [SerializeField] private TMP_Text _scoreText;
 
     public float TimeScore { get; set; }
-    public int FoodScore { get; private set; }
+    public int FoodScore => FoodManager.Instance.Foods.Count(f => f.CurrentState == Food.State.InStorage) * 30;
     public bool Counting { get; set; } = true;
 
     public int Score => Mathf.RoundToInt(TimeScore) + FoodScore;
@@ -24,13 +25,5 @@ public class ScoreManager : MonoBehaviour
             TimeScore += Time.deltaTime;
         }
         _scoreText.text = $"Score: {Score}";
-    }
-
-    public void NotifyFoodCollected() {
-        if (!Counting) {
-            return;
-        }
-
-        FoodScore += 30;
     }
 }

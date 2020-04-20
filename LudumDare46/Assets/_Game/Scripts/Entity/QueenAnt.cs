@@ -40,11 +40,15 @@ public class QueenAnt : MonoBehaviour {
     }
 
     public void Damage(int amount) {
-        CameraManager.Instance.NotifyQueenDamage();
+        if (Health > 0) {
+            CameraManager.Instance.NotifyQueenDamage();
+        }
 
         Health -= amount;
 
         if (Health <= 0) {
+            _movementSpeed = 0;
+
             // GAME OVER
             CameraManager.Instance.MoveToQueen(true);
             _spriteRenderer.DOFade(0, .95f).SetDelay(.5f);

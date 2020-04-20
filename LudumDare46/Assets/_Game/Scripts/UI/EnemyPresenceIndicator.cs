@@ -31,7 +31,7 @@ public class EnemyPresenceIndicator : MonoBehaviour {
 
                 yield return new WaitForSeconds(2f);
 
-                _canvasGroup.transform.DOMove(_startPos, .65f);
+                _canvasGroup.transform.DOMove(new Vector3(Screen.width / 2, Screen.height), .65f);
                 yield return _canvasGroup.transform.DOScale(Vector3.one, .65f);
             } else if (!enemiesArePresent && Active) {
                 Active = false;

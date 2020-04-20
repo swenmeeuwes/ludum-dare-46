@@ -11,7 +11,7 @@ public class EnemyManager : MonoBehaviour
     public List<EnemyAnt> Enemies { get; set; } = new List<EnemyAnt>();
 
     public int Wave { get; set; } = 1;
-    public float NextInterval { get; set; } = 50;
+    public float NextInterval { get; set; } = 40;
 
     private void Awake() {
         Instance = this;
@@ -22,7 +22,7 @@ public class EnemyManager : MonoBehaviour
     }
 
     private IEnumerator SpawnEnemySequence() {
-        yield return new WaitForSeconds(45); // start
+        yield return new WaitForSeconds(50); // start
 
         while (true) {
             yield return new WaitForSeconds(NextInterval + Random.Range(0, 10));
@@ -30,15 +30,10 @@ public class EnemyManager : MonoBehaviour
             CameraManager.Instance.MovedToQueenThisWave = false;
             QueenAnt.Instance.RestoreHP();
 
-            var amountOfEnemies = Wave;
+            var amountOfEnemies = Mathf.CeilToInt(Wave / 2f);
             for (int i = 0; i < amountOfEnemies; i++) {
                 SpawnEnemy();
                 yield return new WaitForSeconds(.85f);
-            }
-
-            NextInterval -= 5;
-            if (NextInterval < 10) {
-                NextInterval = 10;
             }
 
             Wave++;
